@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Image
         run: |
-          docker build -t my-web-app .
+          docker build -t my-web-app ./my-web-app
           docker tag my-web-app:latest 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:latest
 
       - name: Push Image
