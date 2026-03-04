@@ -16,19 +16,21 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: my-web-app
-  CLUSTER_NAME: gitops-eks
-  VPC_CIDR: 10.0.0.0/16
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout
+      # -------------------------------
+      # Checkout Repository
+      # -------------------------------
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # AWS OIDC
+      # -------------------------------
+      # Configure AWS Credentials (OIDC)
+      # -------------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -38,7 +40,9 @@ jobs:
       - name: Verify Identity
         run: aws sts get-caller-identity
 
-      # Terraform
+      # -------------------------------
+      # Setup Terraform
+      # -------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -46,33 +50,45 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file="terraform.tfvars"
+        run: terraform apply -auto-approve
 
-      # ECR Login
+      # -------------------------------
+      # Login to Amazon ECR
+      # -------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build Image
+      # -------------------------------
+      # Build Docker Image
+      # -------------------------------
       - name: Build Docker Image
         run: |
           IMAGE_TAG=${{ github.sha }}
           docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./my-web-app
 
-      # Push Image
+      # -------------------------------
+      # Push Docker Image
+      # -------------------------------
       - name: Push Docker Image
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # Update Manifest
+      # -------------------------------
+      # Update Kubernetes Manifest
+      # -------------------------------
       - name: Update Deployment Image
         run: |
           IMAGE_TAG=${{ github.sha }}
           sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG|g" my-web-app/deployment.yaml
 
-      # Commit Changes
+      # -------------------------------
+      # Commit & Push Updated Manifest
+      # -------------------------------
       - name: Commit Updated Manifest
         run: |
           IMAGE_TAG=${{ github.sha }}
@@ -80,4 +96,4 @@ jobs:
           git config user.email "venkatavinod0896@gmail.com"
           git add my-web-app/deployment.yaml
           git commit -m "Update image to $IMAGE_TAG" || echo "No changes to commit"
-          git push origin main
+          git push
