@@ -26,10 +26,10 @@ jobs:
           docker login --username AWS --password-stdin 527769887303.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Build Image
-        run: |
-          docker build -t my-web-app ./my-web-app
-          docker tag my-web-app:latest 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:latest
+  run: |
+    docker build -t my-web-app ./my-web-app
+    docker tag my-web-app 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
 
-      - name: Push Image
-        run: |
-          docker push 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:latest
+     - name: Push Image
+ run: |
+    docker push 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
