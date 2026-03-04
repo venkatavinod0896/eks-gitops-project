@@ -54,7 +54,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var="cluster_name=gitops-eks"
 
       # -------------------------------
       # Login to Amazon ECR
