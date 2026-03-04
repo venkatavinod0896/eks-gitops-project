@@ -38,9 +38,6 @@ jobs:
           role-to-assume: arn:aws:iam::527769887303:role/github-actions-oidc-role
           aws-region: ${{ env.AWS_REGION }}
 
-      # -------------------------------
-      # Verify OIDC (Optional - can remove later)
-      # -------------------------------
       - name: Verify Identity
         run: aws sts get-caller-identity
 
@@ -55,6 +52,9 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        env:
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
+          TF_VAR_region: ${{ env.AWS_REGION }}
 
       # -------------------------------
       # Login to Amazon ECR
@@ -88,10 +88,14 @@ jobs:
           IMAGE_TAG=${{ github.sha }}
           sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG|g" my-web-app/deployment.yaml
 
+      # -------------------------------
+      # Commit & Push Updated Manifest
+      # -------------------------------
       - name: Commit Updated Manifest
         run: |
+          IMAGE_TAG=${{ github.sha }}
           git config user.name "venkatavinod0896"
           git config user.email "venkatavinod0896@gmail.com"
           git add my-web-app/deployment.yaml
-          git commit -m "Update image to $IMAGE_TAG"
+          git commit -m "Update image to $IMAGE_TAG" || echo "No changes to commit"
           git push
