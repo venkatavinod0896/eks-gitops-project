@@ -1,4 +1,4 @@
-name: Build and Push to ECR
+name: Docker Build and Push
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
@@ -26,10 +26,10 @@ jobs:
           docker login --username AWS --password-stdin 527769887303.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Build Image
-  run: |
-    docker build -t my-web-app ./my-web-app
-    docker tag my-web-app 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
+        run: |
+          docker build -t my-web-app ./my-web-app
+          docker tag my-web-app 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
 
-     - name: Push Image
- run: |
-    docker push 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
+      - name: Push Image
+        run: |
+          docker push 527769887303.dkr.ecr.us-east-1.amazonaws.com/my-web-app:${{ github.sha }}
