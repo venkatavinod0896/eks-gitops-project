@@ -16,6 +16,8 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: my-web-app
+  CLUSTER_NAME: gitops-eks
+  VPC_CIDR: 10.0.0.0/16
 
 jobs:
   deploy:
@@ -51,6 +53,10 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        env:
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
+          TF_VAR_region: ${{ env.AWS_REGION }}
+          TF_VAR_vpc_cidr: ${{ env.VPC_CIDR }}
 
       # -------------------------------
       # Login to Amazon ECR
