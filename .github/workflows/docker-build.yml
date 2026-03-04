@@ -1,54 +1,93 @@
-name: Docker Build and Push
+name: Full CI-CD GitOps Pipeline
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: write
+
 env:
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: my-web-app
+  CLUSTER_NAME: gitops-eks
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # -----------------------------------
-      # Checkout Code
-      # -----------------------------------
+      # -------------------------------
+      # Checkout Repository
+      # -------------------------------
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # -----------------------------------
-      # Configure AWS Credentials
-      # -----------------------------------
+      # -------------------------------
+      # Configure AWS (OIDC)
+      # -------------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::527769887303:role/github-actions-oidc-role
+          aws-region: ${{ env.AWS_REGION }}
 
-      # -----------------------------------
+      # -------------------------------
+      # Verify OIDC (Optional - can remove later)
+      # -------------------------------
+      - name: Verify Identity
+        run: aws sts get-caller-identity
+
+      # -------------------------------
+      # Setup Terraform
+      # -------------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      # -------------------------------
       # Login to Amazon ECR
-      # -----------------------------------
+      # -------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # -----------------------------------
+      # -------------------------------
       # Build Docker Image
-      # -----------------------------------
+      # -------------------------------
       - name: Build Docker Image
         run: |
           IMAGE_TAG=${{ github.sha }}
           docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./my-web-app
 
-      # -----------------------------------
-      # Tag & Push Image to ECR
-      # -----------------------------------
-      - name: Tag and Push Docker Image
+      # -------------------------------
+      # Push Image to ECR
+      # -------------------------------
+      - name: Push Docker Image
         run: |
           IMAGE_TAG=${{ github.sha }}
           docker tag $ECR_REPOSITORY:$IMAGE_TAG ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # -------------------------------
+      # Update Kubernetes Manifest
+      # -------------------------------
+      - name: Update Deployment Image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG|g" my-web-app/deployment.yaml
+
+      - name: Commit Updated Manifest
+        run: |
+          git config user.name "venkatavinod0896"
+          git config user.email "venkatavinod0896@gmail.com"
+          git add my-web-app/deployment.yaml
+          git commit -m "Update image to $IMAGE_TAG"
+          git push
