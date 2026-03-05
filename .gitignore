@@ -4,3 +4,6 @@
 terraform.tfvars
 *.exe
 *.log
+# local temp files
+iam_policy.json
+
