@@ -56,8 +56,9 @@ module "eks" {
 
   cluster_endpoint_public_access = true
 
-  # ✅ Fix for your error: disable encryption so no KMS DescribeKey needed
+  # ✅ Disable encryption + KMS key creation
   cluster_encryption_config = {}
+  create_kms_key            = false
 
   cluster_addons = {
     coredns    = {}
