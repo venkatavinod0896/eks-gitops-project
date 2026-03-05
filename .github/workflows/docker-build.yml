@@ -2,8 +2,13 @@ name: Full CI-CD GitOps Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths-ignore:
+      - "my-web-app/deployment.yaml"
+      - "my-web-app/service.yaml"
+      - "my-web-app/ingress.yaml"
+      - "my-web-app/hpa.yaml"
+      - "my-web-app/argocd-app.yaml"
 
 concurrency:
   group: terraform-deploy
@@ -24,15 +29,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # -------------------------------
-      # Checkout Repository
-      # -------------------------------
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # -------------------------------
-      # Configure AWS Credentials (OIDC)
-      # -------------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -42,64 +43,70 @@ jobs:
       - name: Verify Identity
         run: aws sts get-caller-identity
 
-      # -------------------------------
-      # Setup Terraform
-      # -------------------------------
+      - name: Detect Terraform changes
+        id: tf_changes
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.tf$|\.tfvars$|backend\.tf$|providers\.tf$|variables\.tf$|outputs\.tf$' >/dev/null; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Terraform
+        if: steps.tf_changes.outputs.changed == 'true'
         uses: hashicorp/setup-terraform@v3
 
+      - name: Terraform Format
+        if: steps.tf_changes.outputs.changed == 'true'
+        run: terraform fmt -check -recursive
+
       - name: Terraform Init
+        if: steps.tf_changes.outputs.changed == 'true'
         run: terraform init
 
+      - name: Terraform Validate
+        if: steps.tf_changes.outputs.changed == 'true'
+        run: terraform validate
+
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        if: steps.tf_changes.outputs.changed == 'true'
+        run: terraform apply -auto-approve -lock-timeout=5m
         env:
           TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
           TF_VAR_region: ${{ env.AWS_REGION }}
           TF_VAR_vpc_cidr: ${{ env.VPC_CIDR }}
 
-      # -------------------------------
-      # Login to Amazon ECR
-      # -------------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # -------------------------------
-      # Build Docker Image
-      # -------------------------------
-      - name: Build Docker Image
+      - name: Build & Push Docker Image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          IMAGE_TAG=${{ github.sha }}
-          docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./my-web-app
+          IMAGE_URI="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t "$IMAGE_URI" ./my-web-app
+          docker push "$IMAGE_URI"
 
-      # -------------------------------
-      # Push Docker Image
-      # -------------------------------
-      - name: Push Docker Image
-        run: |
-          IMAGE_TAG=${{ github.sha }}
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG \
-            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push \
-            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
-
-      # -------------------------------
-      # Update Kubernetes Manifest
-      # -------------------------------
       - name: Update Deployment Image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          IMAGE_TAG=${{ github.sha }}
-          sed -i "s|image:.*|image: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG|g" my-web-app/deployment.yaml
+          IMAGE_URI="$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          sed -i -E "0,/image: .*/s|image: .*|image: ${IMAGE_URI}|" my-web-app/deployment.yaml
 
-      # -------------------------------
-      # Commit & Push Updated Manifest
-      # -------------------------------
       - name: Commit Updated Manifest
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE_TAG=${{ github.sha }}
-          git config user.name "venkatavinod0896"
-          git config user.email "venkatavinod0896@gmail.com"
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
           git add my-web-app/deployment.yaml
-          git commit -m "Update image to $IMAGE_TAG" || echo "No changes to commit"
-          git push
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(gitops): update my-web-app image to ${IMAGE_TAG} [skip ci]"
+          git push origin main

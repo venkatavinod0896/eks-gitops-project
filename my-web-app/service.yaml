@@ -1,12 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-web-app-service
+  name: my-web-app
+  labels:
+    app.kubernetes.io/name: my-web-app
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
-    app: my-web-app
+    app.kubernetes.io/name: my-web-app
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
-      targetPort: 80
+      targetPort: http
