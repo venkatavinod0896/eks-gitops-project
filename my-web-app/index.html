@@ -1,13 +1,182 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>DevOps Platform</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Katakam Shop</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; }
+    header { padding: 16px 20px; background: #111827; color: #fff; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size: 18px; }
+    .badge { background:#22c55e; color:#052e16; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+    .wrap { max-width: 1100px; margin: 18px auto; padding: 0 16px; }
+    .top { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .search { flex: 1; min-width: 220px; }
+    .search input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; }
+    .cartBtn { background:#2563eb; color:#fff; border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:14px; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card h3 { margin:8px 0 6px; }
+    .price { font-weight:800; font-size: 16px; }
+    .muted { color:#6b7280; font-size: 13px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+    .btn { background:#111827; color:#fff; border:0; border-radius:10px; padding:9px 12px; cursor:pointer; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .pill { display:inline-block; background:#eef2ff; color:#3730a3; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; }
+    footer { padding:18px; text-align:center; color:#6b7280; }
+    dialog { border:0; border-radius:14px; width:min(520px, 92vw); padding:0; }
+    .dlgHead { padding:14px 16px; background:#111827; color:#fff; display:flex; justify-content:space-between; align-items:center; }
+    .dlgBody { padding:14px 16px; }
+    .close { background:transparent; border:0; color:#fff; font-size:20px; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; }
+    td { padding:8px 0; border-bottom:1px solid #eee; }
+    .right { text-align:right; }
+  </style>
 </head>
-
 <body>
-<h1>Hello Vinod 🚀</h1>
-<p>Deployed using EKS + ArgoCD</p>
-</body>
+  <header>
+    <h1>🛍️ Katakam Shop</h1>
+    <span class="badge">Live on EKS + ArgoCD</span>
+  </header>
 
+  <div class="wrap">
+    <div class="top">
+      <div class="search">
+        <input id="q" placeholder="Search products (e.g., hoodie, mug)..." />
+      </div>
+      <button class="cartBtn" id="openCart">Cart (<span id="cartCount">0</span>)</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <footer>
+    Deployed at <b>https://shop.katakamdevopsplatform.com</b> • UTF-8 enabled ✅
+  </footer>
+
+  <dialog id="cartDialog">
+    <div class="dlgHead">
+      <div>🧺 Your Cart</div>
+      <button class="close" id="closeCart">×</button>
+    </div>
+    <div class="dlgBody">
+      <div id="cartEmpty" class="muted">Cart is empty.</div>
+      <table id="cartTable" style="display:none"></table>
+      <div class="row" style="margin-top:12px">
+        <div><b>Total:</b> $<span id="total">0</span></div>
+        <button class="btn" id="checkout" disabled>Checkout</button>
+      </div>
+      <p class="muted" style="margin-top:10px">
+        Demo app (no payment). Next we can connect a real backend + DB.
+      </p>
+    </div>
+  </dialog>
+
+  <script>
+    const products = [
+      { id: "p1", name: "DevOps Hoodie", price: 39, tag: "Popular", desc: "Warm hoodie for on-call nights." },
+      { id: "p2", name: "Kubernetes Mug", price: 14, tag: "New", desc: "Coffee + kubectl = ❤️" },
+      { id: "p3", name: "SRE Notebook", price: 11, tag: "Best Seller", desc: "Write postmortems in style." },
+      { id: "p4", name: "GitOps T-Shirt", price: 19, tag: "Limited", desc: "Push to Git, ship to prod." },
+      { id: "p5", name: "Cloud Sticker Pack", price: 6, tag: "Fun", desc: "Decorate laptop like a pro." },
+      { id: "p6", name: "Monitoring Poster", price: 9, tag: "Obs", desc: "RED + USE metrics cheat sheet." }
+    ];
+
+    const grid = document.getElementById("grid");
+    const q = document.getElementById("q");
+    const cartDialog = document.getElementById("cartDialog");
+    const cartCount = document.getElementById("cartCount");
+    const cartEmpty = document.getElementById("cartEmpty");
+    const cartTable = document.getElementById("cartTable");
+    const totalEl = document.getElementById("total");
+    const checkout = document.getElementById("checkout");
+
+    const cart = new Map(); // id -> qty
+
+    function money(n){ return n.toFixed(2); }
+
+    function render(list){
+      grid.innerHTML = "";
+      list.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <span class="pill">${p.tag}</span>
+          <h3>${p.name}</h3>
+          <div class="muted">${p.desc}</div>
+          <div class="row">
+            <div class="price">$${money(p.price)}</div>
+            <button class="btn" data-id="${p.id}">Add</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      grid.querySelectorAll("button[data-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          cart.set(id, (cart.get(id) || 0) + 1);
+          updateCartBadge();
+        });
+      });
+    }
+
+    function updateCartBadge(){
+      let count = 0;
+      cart.forEach(v => count += v);
+      cartCount.textContent = count;
+    }
+
+    function openCart(){
+      const items = [...cart.entries()].map(([id, qty]) => {
+        const p = products.find(x => x.id === id);
+        return { ...p, qty };
+      });
+
+      if(items.length === 0){
+        cartEmpty.style.display = "block";
+        cartTable.style.display = "none";
+        checkout.disabled = true;
+        totalEl.textContent = "0.00";
+      } else {
+        cartEmpty.style.display = "none";
+        cartTable.style.display = "table";
+        checkout.disabled = false;
+        let total = 0;
+
+        cartTable.innerHTML = items.map(it => {
+          const line = it.price * it.qty;
+          total += line;
+          return `
+            <tr>
+              <td>${it.name} <span class="muted">x${it.qty}</span></td>
+              <td class="right">$${money(line)}</td>
+            </tr>
+          `;
+        }).join("");
+
+        totalEl.textContent = money(total);
+      }
+
+      cartDialog.showModal();
+    }
+
+    document.getElementById("openCart").addEventListener("click", openCart);
+    document.getElementById("closeCart").addEventListener("click", () => cartDialog.close());
+    checkout.addEventListener("click", () => {
+      alert("✅ Demo checkout complete! Next step: real backend + DB.");
+      cart.clear();
+      updateCartBadge();
+      openCart();
+    });
+
+    q.addEventListener("input", () => {
+      const term = q.value.trim().toLowerCase();
+      const filtered = products.filter(p => (p.name + " " + p.desc + " " + p.tag).toLowerCase().includes(term));
+      render(filtered);
+    });
+
+    render(products);
+  </script>
+</body>
 </html>
