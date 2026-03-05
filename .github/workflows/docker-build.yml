@@ -1,4 +1,4 @@
-name: Full CI-CD GitOps Pipeline
+name: Full CI-CD GitOps Pipeline - Terraform + ECR + ArgoCD
 
 on:
   push:
@@ -92,6 +92,7 @@ jobs:
           TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
           TF_VAR_region: ${{ env.AWS_REGION }}
           TF_VAR_vpc_cidr: ${{ env.VPC_CIDR }}
+          TF_VAR_environment: dev
 
       # -------------------------------
       # Login to Amazon ECR
