@@ -80,7 +80,6 @@ jobs:
           SERVICES=()
 
           KNOWN_SERVICES=(
-            "product-service"
             "cart-service"
             "user-service"
             "order-service"
