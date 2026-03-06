@@ -4,15 +4,23 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'k8s-manifests/**'
-      - 'argocd/**'
+    paths:
+      - '.github/workflows/ci-cd-gitops.yml'
+      - 'cart-service/**'
+      - 'user-service/**'
+      - 'order-service/**'
+      - 'payment-service/**'
+
   push:
     branches:
       - main
-    paths-ignore:
-      - 'k8s-manifests/**'
-      - 'argocd/**'
+    paths:
+      - '.github/workflows/ci-cd-gitops.yml'
+      - 'cart-service/**'
+      - 'user-service/**'
+      - 'order-service/**'
+      - 'payment-service/**'
+
   workflow_dispatch:
 
 concurrency:
@@ -33,27 +41,12 @@ jobs:
     outputs:
       matrix: ${{ steps.detect.outputs.matrix }}
       has_changes: ${{ steps.detect.outputs.has_changes }}
-      tf_changed: ${{ steps.tf.outputs.terraform }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Detect Terraform changes
-        id: tf
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            terraform:
-              - '**/*.tf'
-              - '**/*.tfvars'
-              - 'backend.tf'
-              - 'providers.tf'
-              - 'variables.tf'
-              - 'outputs.tf'
-              - '.terraform.lock.hcl'
 
       - name: Detect changed services
         id: detect
@@ -69,16 +62,12 @@ jobs:
             HEAD_SHA="${{ github.sha }}"
           fi
 
-          echo "Base SHA: $BASE_SHA"
-          echo "Head SHA: $HEAD_SHA"
-
           CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
 
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
           SERVICES=()
-
           KNOWN_SERVICES=(
             "cart-service"
             "user-service"
@@ -87,7 +76,7 @@ jobs:
           )
 
           for svc in "${KNOWN_SERVICES[@]}"; do
-            if echo "$CHANGED_FILES" | grep -qE "^services/${svc}/|^${svc}/"; then
+            if echo "$CHANGED_FILES" | grep -qE "^${svc}/"; then
               SERVICES+=("$svc")
             fi
           done
@@ -123,36 +112,7 @@ jobs:
           IMAGE_TAG="${SERVICE}-pr-${{ github.sha }}"
 
           echo "Validating Docker build for $SERVICE"
-
-          if [ -d "./services/$SERVICE" ]; then
-            docker build -t "$IMAGE_TAG" "./services/$SERVICE"
-          elif [ -d "./$SERVICE" ]; then
-            docker build -t "$IMAGE_TAG" "./$SERVICE"
-          else
-            echo "Service folder not found for $SERVICE"
-            exit 1
-          fi
-
-  terraform-pr-validate:
-    needs: detect-changes
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.tf_changed == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
+          docker build -t "$IMAGE_TAG" "./$SERVICE"
 
   main-deploy:
     needs: detect-changes
@@ -181,21 +141,18 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set variables
+      - name: Set Variables
         id: vars
         shell: bash
         run: |
           set -e
           SERVICE="${{ matrix.service }}"
           FULL_SHA="${{ github.sha }}"
-          SHORT_SHA="${FULL_SHA::7}"
           REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           IMAGE_URI="${REGISTRY}/${SERVICE}:git-${FULL_SHA}"
 
           echo "service=$SERVICE" >> "$GITHUB_OUTPUT"
           echo "full_sha=$FULL_SHA" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
-          echo "registry=$REGISTRY" >> "$GITHUB_OUTPUT"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
           echo "Service   : $SERVICE"
@@ -207,15 +164,7 @@ jobs:
           set -e
           SERVICE="${{ steps.vars.outputs.service }}"
           IMAGE_URI="${{ steps.vars.outputs.image_uri }}"
-
-          if [ -d "./services/$SERVICE" ]; then
-            docker build -t "$IMAGE_URI" "./services/$SERVICE"
-          elif [ -d "./$SERVICE" ]; then
-            docker build -t "$IMAGE_URI" "./$SERVICE"
-          else
-            echo "Service folder not found for $SERVICE"
-            exit 1
-          fi
+          docker build -t "$IMAGE_URI" "./$SERVICE"
 
       - name: Push Docker Image
         shell: bash
@@ -246,6 +195,7 @@ jobs:
         shell: bash
         run: |
           set -e
+
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
 
@@ -261,39 +211,3 @@ jobs:
 
           git commit -m "gitops: update ${SERVICE} image to git-${FULL_SHA} [skip ci]"
           git push origin main
-
-  terraform-main-apply:
-    needs: detect-changes
-    if: github.event_name == 'push' && needs.detect-changes.outputs.tf_changed == 'true'
-    runs-on: ubuntu-latest
-
-    env:
-      CLUSTER_NAME: gitops-eks
-      VPC_CIDR: 10.0.0.0/16
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -lock-timeout=5m
-        env:
-          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
-          TF_VAR_region: ${{ env.AWS_REGION }}
-          TF_VAR_vpc_cidr: ${{ env.VPC_CIDR }}
-          TF_VAR_environment: dev
