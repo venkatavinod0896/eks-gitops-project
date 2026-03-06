@@ -61,7 +61,7 @@ module "eks" {
   create_kms_key            = false
 
   # ✅ IMPORTANT: Allow kubectl access by managing aws-auth
-  manage_aws_auth_configmap = true
+  manage_aws_auth_configmap = false
 
   aws_auth_users = [
     {
