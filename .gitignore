@@ -1,9 +1,12 @@
-.terraform/
-*.tfstate
-*.tfstate.*
-terraform.tfvars
-*.exe
 *.log
-# local temp files
-iam_policy.json
-
+*.tmp
+*.bak
+*.swp
+*.pid
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+.vscode/
+.idea/
+node_modules/
