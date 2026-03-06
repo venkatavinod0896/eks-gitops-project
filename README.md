@@ -1,232 +1,92 @@
-# 🚀 EKS Microservices Platform with Istio Service Mesh
+# 🚀 AWS EKS GitOps Microservices Platform
 
-This project demonstrates a **production-grade Kubernetes microservices architecture** deployed on AWS using **Amazon EKS and Istio Service Mesh**.
+![AWS](https://img.shields.io/badge/AWS-EKS-orange?logo=amazon-aws)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Cluster-blue?logo=kubernetes)
+![Istio](https://img.shields.io/badge/ServiceMesh-Istio-466BB0?logo=istio)
+![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-red?logo=argo)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform)
+![Prometheus](https://img.shields.io/badge/Monitoring-Prometheus-orange?logo=prometheus)
+![Grafana](https://img.shields.io/badge/Dashboard-Grafana-F46800?logo=grafana)
+![Jaeger](https://img.shields.io/badge/Tracing-Jaeger-blue)
+![Kiali](https://img.shields.io/badge/Mesh-Visualization-green)
 
-It simulates a real **e-commerce platform** consisting of multiple microservices with advanced traffic management, observability, and secure communication.
+A **production-style cloud-native microservices platform** built using:
+
+AWS EKS • Istio Service Mesh • ArgoCD GitOps • Terraform • Prometheus • Grafana • Jaeger • Kiali
+
+This project demonstrates how to design and operate a **fully observable Kubernetes platform with GitOps deployment and service mesh traffic management**.
 
 ---
 
-# 📌 Project Features
+# 🌐 Live Demo
 
-✔ Kubernetes microservices architecture
-✔ AWS EKS cluster deployment
-✔ Istio Service Mesh
-✔ Canary deployments (90/10 split)
-✔ Advanced traffic control (retries, timeouts, circuit breaker)
-✔ Observability stack (Kiali, Prometheus, Grafana, Jaeger)
-✔ DNS routing via Route53
-✔ Public application access through AWS Load Balancer
-✔ GitHub repository for version control
+```
+https://shop.katakamdevopsplatform.com
+```
 
 ---
 
 # 🏗 Architecture Diagram
 
+![Architecture](screenshots/architecture.png)
+
+---
+
+# 🔄 End-to-End Request Flow
+
 ```
-                      Internet
-                          │
-                          ▼
-                Route53 DNS Record
-          app.katakamdevopsplatform.com
-                          │
-                          ▼
-              AWS Network Load Balancer
-                          │
-                          ▼
-                Istio Ingress Gateway
-                          │
-                          ▼
-                 Istio Virtual Service
-                          │
-                          ▼
-          ┌──────────────────────────────────┐
-          │           EKS Cluster            │
-          │                                  │
-          │  product-service (v1 / v2)       │
-          │  cart-service                    │
-          │  order-service                   │
-          │  payment-service                 │
-          │  user-service                    │
-          │                                  │
-          │  Istio Envoy Sidecars            │
-          └──────────────────────────────────┘
-                          │
-                          ▼
-                 Observability Stack
-     Prometheus → Grafana → Jaeger → Kiali
+User Browser
+      ↓
+Route53 DNS
+      ↓
+AWS Network Load Balancer
+      ↓
+Istio Ingress Gateway
+      ↓
+Istio VirtualService Routing
+      ↓
+Kubernetes Services
+      ↓
+Microservices Pods
+      ↓
+Envoy Sidecar Proxies
+      ↓
+Observability Stack
 ```
 
 ---
 
-# 🧩 Microservices
+# 🧱 Platform Architecture Layers
 
-| Service         | Endpoint    |
-| --------------- | ----------- |
-| Product Service | `/products` |
-| Cart Service    | `/cart`     |
-| Order Service   | `/orders`   |
-| Payment Service | `/payments` |
-| User Service    | `/users`    |
-
----
-
-# ☁️ Infrastructure Components
-
-| Component  | Purpose                    |
-| ---------- | -------------------------- |
-| AWS EKS    | Managed Kubernetes         |
-| AWS NLB    | External traffic entry     |
-| Istio      | Service mesh               |
-| Karpenter  | Node autoscaling           |
-| Route53    | DNS routing                |
-| Prometheus | Metrics collection         |
-| Grafana    | Metrics visualization      |
-| Jaeger     | Distributed tracing        |
-| Kiali      | Service mesh visualization |
-
----
-
-# 🚀 Phase 1 — Create EKS Cluster
-
-Create cluster using AWS CLI or Terraform.
-
-Verify nodes:
+### Layer 1 — Infrastructure
 
 ```
-kubectl get nodes
+Terraform
+AWS VPC
+AWS EKS
+AWS Load Balancer
+Route53 DNS
 ```
 
-Expected output:
+### Layer 2 — Platform
 
 ```
-ip-10-0-1-x
-ip-10-0-2-x
+Kubernetes (EKS)
+Istio Service Mesh
+ArgoCD GitOps
 ```
 
----
-
-# 🚀 Phase 2 — Deploy Microservices
-
-Create namespace:
+### Layer 3 — Application
 
 ```
-kubectl create namespace ecommerce
+product-service
+cart-service
+order-service
+payment-service
+user-service
 ```
 
-Deploy services:
-
-```
-kubectl apply -f product-service.yaml
-kubectl apply -f cart-service.yaml
-kubectl apply -f order-service.yaml
-kubectl apply -f payment-service.yaml
-kubectl apply -f user-service.yaml
-```
-
-Verify:
-
-```
-kubectl get pods -n ecommerce
-```
-
----
-
-# 🚀 Phase 3 — Install Istio
-
-Install Istio:
-
-```
-istioctl install --set profile=demo -y
-```
-
-Enable sidecar injection:
-
-```
-kubectl label namespace ecommerce istio-injection=enabled
-```
-
-Restart deployments:
-
-```
-kubectl rollout restart deployment -n ecommerce
-```
-
----
-
-# 🚀 Phase 4 — Configure Istio Gateway
-
-Expose services externally.
-
-```
-kubectl apply -f ecommerce-gateway.yaml
-```
-
-Verify:
-
-```
-kubectl get gateway -n ecommerce
-```
-
----
-
-# 🚀 Phase 5 — VirtualService Routing
-
-Routes requests to services.
-
-Example:
-
-```
-/products → product-service
-/cart → cart-service
-/orders → order-service
-/payments → payment-service
-/users → user-service
-```
-
-Apply:
-
-```
-kubectl apply -f virtualservice.yaml
-```
-
----
-
-# 🚀 Phase 6 — Canary Deployment
-
-Two versions of product service.
-
-```
-product-service-v1
-product-service-v2
-```
-
-Traffic split:
-
-```
-90% → v1
-10% → v2
-```
-
-VirtualService example:
-
-```
-route:
-- destination:
-    host: product-service
-    subset: v1
-  weight: 90
-
-- destination:
-    host: product-service
-    subset: v2
-  weight: 10
-```
-
----
-
-# 🚀 Phase 7 — Observability Setup
-
-Installed tools:
+### Layer 4 — Observability
 
 ```
 Prometheus
@@ -235,218 +95,410 @@ Jaeger
 Kiali
 ```
 
-Access dashboards:
+### Layer 5 — User Access
 
 ```
-istioctl dashboard kiali
-istioctl dashboard grafana
-istioctl dashboard prometheus
-```
-
----
-
-# 🚀 Phase 8 — Domain Mapping
-
-Domain used:
-
-```
-katakamdevopsplatform.com
-```
-
-DNS record:
-
-```
-app.katakamdevopsplatform.com
-```
-
-Route53 configuration:
-
-```
-Type: A
-Alias: AWS Network Load Balancer
-```
-
-Application access:
-
-```
-http://app.katakamdevopsplatform.com/products
+Route53 DNS
+AWS Network Load Balancer
+Istio Ingress Gateway
 ```
 
 ---
 
-# ⚠ Issues Faced & Fixes
+# 🛒 Application UI
 
-## Issue 1 — Pods stuck in 1/2 state
+![Application](screenshots/livepage.jpeg)
 
-Cause:
+Microservices implemented:
 
-Istio sidecar not injected.
+```
+product-service
+cart-service
+order-service
+payment-service
+user-service
+```
+
+Each service runs inside **Kubernetes pods with Istio Envoy sidecar proxy** enabling service mesh features.
+
+---
+
+# 🚀 GitOps Deployment (ArgoCD)
+
+![ArgoCD](screenshots/argocddashboard.jpeg)
+
+Deployment workflow:
+
+```
+Developer
+   ↓
+GitHub Repository
+   ↓
+ArgoCD detects changes
+   ↓
+Automatic Sync
+   ↓
+Deploy to EKS Cluster
+```
+
+Benefits:
+
+* automated deployments
+* version-controlled infrastructure
+* easy rollback
+* continuous delivery
+
+---
+
+# 🌐 Service Mesh Visualization (Kiali)
+
+![Kiali](screenshots/kiali.jpeg)
+
+Kiali visualizes service-to-service communication inside the service mesh.
+
+Example service flow:
+
+```
+product-service
+      ↓
+cart-service
+      ↓
+order-service
+      ↓
+payment-service
+```
+
+Capabilities:
+
+* traffic visualization
+* service dependency graphs
+* request rate monitoring
+* error rate monitoring
+
+---
+
+# 📊 Monitoring with Grafana
+
+![Grafana](screenshots/grafana.jpeg)
+
+Metrics visualized:
+
+* CPU usage
+* memory usage
+* request latency
+* service throughput
+
+Dashboard used:
+
+```
+Istio Control Plane Dashboard
+```
+
+---
+
+# 📈 Metrics Collection with Prometheus
+
+![Prometheus](screenshots/prometheus.jpeg)
+
+Example targets:
+
+```
+istio-ingressgateway
+product-service
+order-service
+jaeger
+```
+
+Prometheus collects metrics from:
+
+* Kubernetes pods
+* Istio ingress gateway
+* cluster components
+
+---
+
+# 🔎 Distributed Tracing with Jaeger
+
+![Jaeger](screenshots/jaeger.jpeg)
+
+Trace example:
+
+```
+User Request
+      ↓
+product-service
+      ↓
+cart-service
+      ↓
+order-service
+      ↓
+payment-service
+```
+
+Benefits:
+
+* latency analysis
+* request tracing
+* debugging distributed systems
+
+---
+
+# 🚀 Advanced Istio Features Implemented
+
+## Canary Deployment
+
+Traffic split example:
+
+```
+product-service v1 → 90%
+product-service v2 → 10%
+```
+
+Benefits:
+
+* gradual rollout
+* safer deployments
+* quick rollback
+
+---
+
+## Retry & Timeout Policies
+
+Example:
+
+```
+retries:
+  attempts: 3
+  perTryTimeout: 2s
+
+timeout: 5s
+```
+
+Benefits:
+
+* automatic retry on failure
+* improved reliability
+
+---
+
+## Fault Injection Testing
+
+Tested scenarios:
+
+* artificial delays
+* service failures
+* network latency simulation
+
+Purpose:
+
+* validate system resilience
+* test monitoring alerts
+
+---
+
+# ⚠ Issues Faced During Implementation
+
+### DNS returning 404
+
+Fix: Update Route53 record to Istio LoadBalancer.
+
+---
+
+### 502 Bad Gateway
+
+Fix: Correct Istio VirtualService routing rules.
+
+---
+
+### Istio sidecar not injected
 
 Fix:
 
 ```
 kubectl label namespace ecommerce istio-injection=enabled
-kubectl rollout restart deployment
 ```
 
 ---
 
-## Issue 2 — 503 Service Unavailable
+### ArgoCD OutOfSync
 
-Cause:
-
-VirtualService routing incorrect.
-
-Fix:
-
-Corrected URI match rules.
+Fix: Correct repository path configuration.
 
 ---
 
-## Issue 3 — Cannot access LoadBalancer
+# 🚨 Real Production Incident Scenarios & Fixes
 
-Cause:
+### Application Down
 
-Security group blocked traffic.
-
-Fix:
+Check:
 
 ```
-aws ec2 authorize-security-group-ingress
+kubectl get pods
+kubectl get svc
+kubectl get gateway
+kubectl get virtualservice
 ```
 
 ---
 
-## Issue 4 — DNS not resolving
+### Service Communication Failure
 
-Cause:
-
-Route53 record pointing to wrong load balancer.
-
-Fix:
-
-Updated alias to correct NLB.
-
----
-
-## Issue 5 — Too many pods error
-
-Cause:
-
-Node CPU exhausted.
-
-Fix:
-
-Karpenter automatically provisioned new node.
-
----
-
-# 🔐 Security
-
-Implemented security features:
-
-* mTLS communication between services
-* Authorization policies
-* Namespace isolation
-
----
-
-# 📊 Observability
-
-Using Kiali we can visualize service traffic:
+Check:
 
 ```
-product-service → cart-service
-cart-service → order-service
-order-service → payment-service
+kubectl get endpoints
+kubectl get svc
 ```
 
-Metrics available:
-
-* Request rate
-* Latency
-* Error rate
+Use **Kiali service graph**.
 
 ---
 
-# 🎤 5 Minute Interview Explanation
+### High Latency
 
-Example answer:
-
-> I implemented a microservices platform on AWS using EKS and Istio Service Mesh.
->
-> The application consists of multiple services such as product, cart, order, payment, and user services.
->
-> Traffic enters through Route53 DNS and an AWS Network Load Balancer, which forwards requests to the Istio Ingress Gateway.
->
-> Istio handles service-to-service communication using Envoy sidecar proxies and enables advanced traffic management like canary deployments and retries.
->
-> For observability, I integrated Prometheus, Grafana, Jaeger, and Kiali to monitor metrics, traces, and service topology.
->
-> This architecture ensures reliability, security, and controlled rollouts in a production environment.
-
----
-
-# 💼 Real DevOps Scenarios
-
-### Scenario 1 — Production Deployment
-
-New version deployed using canary strategy:
+Use observability tools:
 
 ```
-v1 → 90%
-v2 → 10%
-```
-
-Monitor metrics before full rollout.
-
----
-
-### Scenario 2 — Service Failure
-
-Istio retries failed requests:
-
-```
-retries: 3
-timeout: 5s
+Jaeger
+Grafana
+Prometheus
 ```
 
 ---
 
-### Scenario 3 — Debug latency
+### Pod CrashLoopBackOff
 
-Use Jaeger distributed tracing to find slow services.
+Check:
 
----
-
-### Scenario 4 — Traffic spike
-
-Karpenter automatically provisions new nodes.
-
----
-
-### Scenario 5 — Secure communication
-
-Strict mTLS ensures encrypted service communication.
+```
+kubectl logs
+kubectl describe pod
+```
 
 ---
 
-# 📈 Future Improvements
+### Prometheus Targets DOWN
 
-Planned enhancements:
+Fix metrics annotations:
 
-* GitOps using ArgoCD
-* Automatic canary using Argo Rollouts
-* HTTPS with AWS ACM
-* Rate limiting
-* Chaos engineering
+```
+prometheus.io/scrape: "true"
+prometheus.io/port: "8080"
+```
+
+---
+
+# 🎯 Scenario-Based Interview Questions
+
+### Scenario 1 — Application not accessible
+
+Check:
+
+```
+DNS
+Load Balancer
+Ingress Gateway
+Services
+Pods
+```
+
+---
+
+### Scenario 2 — Traffic spike
+
+Solutions:
+
+```
+Horizontal Pod Autoscaler
+Karpenter node autoscaling
+```
+
+---
+
+### Scenario 3 — Deployment failure
+
+```
+kubectl logs
+kubectl describe pod
+argocd app get <app>
+```
+
+---
+
+# 🎤 Interview Explanation Scripts
+
+## 30-Second Explanation
+
+This project demonstrates a microservices platform on AWS EKS using Istio service mesh and GitOps deployment with ArgoCD. Traffic flows through Route53 and AWS Load Balancer into Istio Ingress Gateway and then to microservices. Observability is implemented with Prometheus, Grafana, Jaeger, and Kiali.
+
+---
+
+## 2-Minute Explanation
+
+The platform hosts a microservices-based e-commerce application deployed on AWS EKS. Traffic enters through Route53 and AWS Network Load Balancer and reaches the Istio Ingress Gateway. Istio manages routing between microservices. Observability is implemented using Prometheus, Grafana, Jaeger, and Kiali. ArgoCD ensures GitOps-based continuous delivery.
+
+---
+
+## 5-Minute Explanation
+
+Infrastructure is provisioned with Terraform. The application runs on EKS with Istio service mesh managing service communication. ArgoCD implements GitOps deployment from GitHub. Prometheus collects metrics, Grafana visualizes dashboards, Jaeger traces distributed requests, and Kiali shows service topology.
+
+---
+
+# ✅ Production Readiness Checklist
+
+| Capability               | Status |
+| ------------------------ | ------ |
+| Infrastructure as Code   | ✅      |
+| Kubernetes Orchestration | ✅      |
+| Service Mesh             | ✅      |
+| GitOps Deployment        | ✅      |
+| Observability Stack      | ✅      |
+| Traffic Management       | ✅      |
+| Canary Deployment        | ✅      |
+| Fault Injection Testing  | ✅      |
+| Monitoring & Metrics     | ✅      |
+| Distributed Tracing      | ✅      |
+| Autoscaling              | ✅      |
+
+---
+
+# 🛠 Technology Stack
+
+| Component      | Tool       |
+| -------------- | ---------- |
+| Cloud          | AWS        |
+| Kubernetes     | EKS        |
+| Service Mesh   | Istio      |
+| GitOps         | ArgoCD     |
+| Monitoring     | Prometheus |
+| Dashboards     | Grafana    |
+| Tracing        | Jaeger     |
+| Visualization  | Kiali      |
+| Infrastructure | Terraform  |
+
+---
+
+# 🔮 Future Improvements
+
+Possible enhancements:
+
+* Strict mTLS enforcement
+* Blue-Green deployments
+* Chaos engineering experiments
+* advanced CI/CD automation
+* security scanning pipelines
 
 ---
 
 # 👨‍💻 Author
 
-Vinod Katakam
+**Venkata Vinod Kumar Katakam**
 
-DevOps Engineer
+DevOps Engineer | Cloud | Kubernetes | Platform Engineering
 
-This project demonstrates **real-world Kubernetes service mesh architecture with AWS and Istio**.
+GitHub:
+
+```
+https://github.com/venkatavinod0896
+```
